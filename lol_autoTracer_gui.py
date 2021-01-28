@@ -1,7 +1,7 @@
 from tkinter import *
 from tkinter import ttk
 import time
-
+ 
 class lol_tracer_Tk(Tk):
     def __init__(self):
         Tk.__init__(self)
