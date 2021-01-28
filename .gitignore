@@ -1,0 +1,5 @@
+/.vscode
+/api_key.dat
+/cache.json
+/example_gui.py
+/__pycache__
