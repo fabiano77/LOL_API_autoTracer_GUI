@@ -1,6 +1,6 @@
 import requests
 import json
-
+ 
 API_KEY = ''
 with open('api_key.dat') as f:
     API_KEY = f.readline()
