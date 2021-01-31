@@ -7,21 +7,24 @@ import datetime
 import lol_api
 
 class lol_tracer_Tk(Tk):
-    def __init__(self):
+    def __init__(self, add_size):
         Tk.__init__(self)
+        self.add_size = add_size
         self.label = Label(self, text="", font=("System", 20))
         self.label.pack()
         self.now_time = 0
         # 창 생성
         self.title('롤 유저 자동 추적 프로그램 - by dhKim')
-        self.geometry("410x505+1500+700")
+        size = "410x505+1500+700"
+        size = size[:4] + str(int(size[4:7])+add_size) + size[7:]
+        self.geometry(size)
         self.resizable(False, False)
 
         # 닉네임 입력 프레임
         frame_users = LabelFrame(self, text = '소환사 닉네임 목록', padx = 5, pady = 5)
         frame_users.place(x=10,y=10)
         self.text_users = Text(frame_users, width = 25, height = 11, padx = 5, pady = 5, font = ('NanumGothic', 10))
-        self.users = "26세고졸무직공익\nAlphabetC\n굿팀\ntransname"#\n불버거\n웃대의님아\n호량느\nzhongdanhuangdi\n김개미"
+        self.users = "T1 Canna\n26세고졸무직공익\nAlphabetC\ntransname\n불버거\n웃대의님아\n호량느\nzhongdanhuangdi\n김개미"
         self.text_users.insert(END, self.users)
         self.text_users.pack()
 
@@ -58,9 +61,9 @@ class lol_tracer_Tk(Tk):
         button_manual.pack()
 
         # 현재 게임중인 유저 프레임
-        self.frame_bottom = LabelFrame(self, padx = 5, pady = 5, text = '현재 게임중인 유저', width = 370, height = 280)#, bg = "white")
+        self.frame_bottom = LabelFrame(self, padx = 5, pady = 5, text = '추적 유저 목록', width = 370, height = 280)#, bg = "white")
         self.frame_bottom.place(x=10, y=200)
-        self.mycanvas = Canvas(self.frame_bottom, bg = 'white', width = 350)
+        self.mycanvas = Canvas(self.frame_bottom, bg = 'white', width = 350, height = 260+add_size)
         self.mycanvas.pack(side="left")
 
         # 스크롤바 추가
@@ -83,15 +86,18 @@ class lol_tracer_Tk(Tk):
 
         # memory 확보
         self.icon_memory = {}
-        self.tier_memory = {}
+        self.tier_memory_M = {}
+        self.tier_memory_S = {}
         self.playing_user_cnt = 0
-        self.tier_list = ['Bronze', 'Challenger', 'Diamond', 'Gold', 'Grandmaster', 'Iron', 'Master', 'Platinum', 'Silver']
+        self.tier_list = ['Bronze', 'Challenger', 'Diamond', 'Gold', 'Grandmaster', 'Iron', 'Master', 'Platinum', 'Silver', 'Unranked']
         for tier in self.tier_list:
-            with open('.\\image\\ranked-emblems\\Emblem_'+tier+'.png', 'rb') as img:
-                self.tier_memory[tier] = img.read()
+            with open('.\\image\\medium-emblems\\Emblem_'+tier+'.png', 'rb') as img:
+                self.tier_memory_M[tier] = img.read()
+        for tier in self.tier_list:
+            with open('.\\image\\small-emblems\\Emblem_'+tier+'.png', 'rb') as img:
+                self.tier_memory_S[tier] = img.read()
 
-        # 지속적인 정보 갱신(시간 동기화)
-        # self.update()
+        self.update()
     
 
     def button_click_1(self):
@@ -118,11 +124,12 @@ class lol_tracer_Tk(Tk):
         print('call: update,', end=' ')
         # 유저 창 프레임 초기화
         self.frame_user_init()
-        self.playing_user_cnt
+        self.playing_user_cnt = 0
         # 최근 갱신 시간
         self.now_time = time.time()
-        self.label_time.configure(text=time.strftime("%H:%M:%S", time.localtime(self.now_time)))
-        print(self.now_time)
+        time_str = time.strftime("%H:%M:%S", time.localtime(self.now_time))
+        self.label_time.configure(text=time_str)
+        print(time_str)
 
         # api 확인
         if lol_api.check_api() != 200:
@@ -167,30 +174,45 @@ class lol_tracer_Tk(Tk):
         if user_tier == '자유':
             user_tier = user_rank_tier_data.split()[1]
         user_tier = user_tier.lower().capitalize()
-
-        # 유저 개인 Frame 생성
-        frame_user = LabelFrame(self.frame_playing_user, width = 350, height = 70, padx = 5, pady = 3)
-        frame_user.pack(side='top')
-        # 유저 닉네임 출력
-        label_name = Label(frame_user, text = user_data['name'])
-        label_name.place(x=2, y=5)
-        # 유저 랭크 티어 정보 출력
-        label_name = Label(frame_user, text = user_rank_tier_data)
-        label_name.place(x=2, y=30)
-        # 유저 매치 정보 출력
+        
+        # 게임(on/off) 에 따른 정보 출력
         if match_data == False:
-            # 게임 중이 아님
-            label_match = Label(frame_user, text = '현재 게임 중이 아닙니다.')
-            label_match.place(x=180, y=20)
+            # 유저 게임 비 진행중
+            # 유저 개인 Frame 생성
+            frame_user = LabelFrame(self.frame_playing_user, width = 350, height = 35, padx = 5, pady = 3)
+            frame_user.pack(side='top')
+            # 유저 닉네임 출력
+            label_name = Label(frame_user, text = user_data['name'])
+            label_name.place(x=2, y=0)
+            # 유저 랭크 티어 정보 출력
+            label_name = Label(frame_user, text = user_rank_tier_data)
+            label_name.place(x=150, y=0)
+            # 유저 승패 정보 출력
+            label_wins = Label(frame_user, text = lol_api.get_win_cnt(user_name), font = ("D2Coding",9))
+            label_wins.place(x=253, y=0)
+            # 유저 티어 아이콘 출력
+            self.user_tier_photo_list.append(PhotoImage(data = self.tier_memory_S[user_tier])) # zoom과 subsample로 크기조절
+            label_tier = Label(frame_user, image = self.user_tier_photo_list[order])
+            label_tier.place(x=120, y=-2)
         else:
+            # 유저 게임 중 상태
             self.playing_user_cnt += 1
-            # 게임 중
-            label_match = Label(frame_user, text = '현재 게임 중입니다.')
+            # 유저 개인 Frame 생성
+            frame_user = LabelFrame(self.frame_playing_user, width = 350, height = 70, padx = 5, pady = 3)
+            frame_user.pack(side='top')
+            # 유저 닉네임 출력
+            label_name = Label(frame_user, text = user_data['name'])
+            label_name.place(x=2, y=5)
+            # 유저 랭크 티어 정보 출력
+            label_name = Label(frame_user, text = user_rank_tier_data)
+            label_name.place(x=2, y=30)
+            # 게임 중, 게임유형정보
+            label_match = Label(frame_user, text = lol_api.get_queue_type(match_data))
             label_match.place(x=180, y=30)
             # 게임 진행 시간
             match_start_time = match_data['gameStartTime']/1000
             time_str = time.strftime('%M분%S초', time.localtime(self.now_time - match_start_time))
-            label_time_length = Label(frame_user, text = '진행 시간 '+time_str)
+            label_time_length = Label(frame_user, text = time_str)
             label_time_length.place(x=180, y=5)
             # 유저 챔피언
             champ_name = ''
@@ -201,10 +223,13 @@ class lol_tracer_Tk(Tk):
             champ_img = lol_api.get_champ_image(champ_name)
             self.user_champ_photo_list.append(PhotoImage(data = champ_img).zoom(1).subsample(3)) # zoom과 subsample로 크기조절
             label_champ = Label(frame_user, image = self.user_champ_photo_list[self.playing_user_cnt-1])
-            label_champ.place(x=295, y=8)
+            label_champ.place(x=280, y=8)
+            # 유저 티어 아이콘 출력
+            self.user_tier_photo_list.append(PhotoImage(data = self.tier_memory_M[user_tier])) # zoom과 subsample로 크기조절
+            label_tier = Label(frame_user, image = self.user_tier_photo_list[order])
+            label_tier.place(x=120, y=0)
+
         print(f'소요시간 {time.time()-start_time:.2f}[s]')
-
-
 
         # user정보를 이용하여 소환사 아이콘 img 다운
         # user_icon_img = self.load_icon_img(user_data['profileIconId'])
@@ -213,10 +238,7 @@ class lol_tracer_Tk(Tk):
         # label_icon = Label(frame_user, image = self.user_icon_photo_list[order])
         # label_icon.place(x=120, y=4)
 
-        # 유저 티어 아이콘 출력
-        self.user_tier_photo_list.append(PhotoImage(data = self.tier_memory[user_tier]).zoom(1).subsample(10)) # zoom과 subsample로 크기조절
-        label_tier = Label(frame_user, image = self.user_tier_photo_list[order])
-        label_tier.place(x=120, y=0)
+        
 
 
         
@@ -224,5 +246,6 @@ class lol_tracer_Tk(Tk):
 
 
 if __name__ == '__main__':
-    win=lol_tracer_Tk()
+    additional_size = 100
+    win=lol_tracer_Tk(additional_size)
     win.mainloop()
