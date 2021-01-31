@@ -3,6 +3,7 @@ from tkinter import ttk
 from io import BytesIO
 from PIL import Image, ImageTk
 import time
+import datetime
 import lol_api
 
 class lol_tracer_Tk(Tk):
@@ -20,12 +21,9 @@ class lol_tracer_Tk(Tk):
         frame_users = LabelFrame(self, text = '소환사 닉네임 목록', padx = 5, pady = 5)
         frame_users.place(x=10,y=10)
         self.text_users = Text(frame_users, width = 25, height = 11, padx = 5, pady = 5, font = ('NanumGothic', 10))
-        self.users = "26세고졸무직공익\nAlphabetC\n엉덩국 갱승제로\ntransname"#\n불버거\n웃대의님아\n호량느\nzhongdanhuangdi\n김개미"
+        self.users = "26세고졸무직공익\nAlphabetC\n굿팀\ntransname"#\n불버거\n웃대의님아\n호량느\nzhongdanhuangdi\n김개미"
         self.text_users.insert(END, self.users)
         self.text_users.pack()
-
-        # 기본 유저 리스트
-        self.user_list = self.users.split('\n')
 
         # 새로고침 프레임
         frame_option = LabelFrame(self, text = '새로고침 주기', padx = 6, pady = 5)
@@ -110,22 +108,36 @@ class lol_tracer_Tk(Tk):
         self.user_champ_photo_list = []
 
 
+    def auto_update(self):
+        print('call: auto_update,', end=' ')
+        # (?)ms후에 다시 갱신
+        self.after(30000, self.update) # 30초
+
     def update(self):
+        start_time = time.time()
         print('call: update,', end=' ')
         # 유저 창 프레임 초기화
         self.frame_user_init()
         self.playing_user_cnt
         # 최근 갱신 시간
-        self.now_time = time.strftime("%H:%M:%S")
-        self.label_time.configure(text=self.now_time)
+        self.now_time = time.time()
+        self.label_time.configure(text=time.strftime("%H:%M:%S", time.localtime(self.now_time)))
         print(self.now_time)
+
+        # api 확인
+        if lol_api.check_api() != 200:
+            print("API키를 체크해주세요")
+            return
+
+        # 유저 리스트 입력받음
+        self.user_list = self.text_users.get("1.0", END).rstrip().split('\n')
 
         # 유저 정보 갱신
         for user_num, user_name in enumerate(self.user_list):
             self.show_user_info(user_num, user_name)
+        print(f'소요시간 {time.time()-start_time:.2f}[s]')
 
-        # (?)ms후에 다시 갱신
-        self.after(30000, self.update) # 30초
+        
 
 
     def load_icon_img(self, icon_key):
@@ -141,17 +153,15 @@ class lol_tracer_Tk(Tk):
 
 
     def show_user_info(self, order, user_name):
+        start_time = time.time()
         print('call: show_user_info,', end = ' ')
         print(order, user_name)
         # riot API로부터 user정보 받아오기
         user_data = lol_api.get_user_json(user_name)
         # riot APi로부터 현재 진행중인 게임 정보 받아오기
-        match_data = lol_api.get_current_match(user_name)
-        if match_data == 404:
-            print('게임 진행 중이 않습니다.')
-            pass
+        match_data = lol_api.get_current_match(user_data['id'])
         # 유저 랭크 티어 정보 (티어, 계급, 점수) ex. SILVER 4
-        user_rank_tier_data = lol_api.get_user_solo_rank_info(user_data['id'])
+        user_rank_tier_data = lol_api.get_user_solo_rank_info(user_name)
         # 유저 티어 정보 (티어)
         user_tier = user_rank_tier_data.split()[0]
         if user_tier == '자유':
@@ -162,7 +172,7 @@ class lol_tracer_Tk(Tk):
         frame_user = LabelFrame(self.frame_playing_user, width = 350, height = 70, padx = 5, pady = 3)
         frame_user.pack(side='top')
         # 유저 닉네임 출력
-        label_name = Label(frame_user, text = user_name)
+        label_name = Label(frame_user, text = user_data['name'])
         label_name.place(x=2, y=5)
         # 유저 랭크 티어 정보 출력
         label_name = Label(frame_user, text = user_rank_tier_data)
@@ -178,20 +188,21 @@ class lol_tracer_Tk(Tk):
             label_match = Label(frame_user, text = '현재 게임 중입니다.')
             label_match.place(x=180, y=30)
             # 게임 진행 시간
-            match_timeLength = match_data['gameLength']
-            match_timeLength += 300
-            label_time_length = Label(frame_user, text = '진행 시간 {}분{}초'.format(match_timeLength//60, match_timeLength%60))
+            match_start_time = match_data['gameStartTime']/1000
+            time_str = time.strftime('%M분%S초', time.localtime(self.now_time - match_start_time))
+            label_time_length = Label(frame_user, text = '진행 시간 '+time_str)
             label_time_length.place(x=180, y=5)
             # 유저 챔피언
             champ_name = ''
             for i in range(10):
-                if match_data['participants'][i]['summonerName'] == user_name:
+                if match_data['participants'][i]['summonerName'].replace(" ", "") == user_name.replace(" ", ""):
                     champ_key = match_data['participants'][i]['championId']
                     champ_name = lol_api.get_champ_name(champ_key)
             champ_img = lol_api.get_champ_image(champ_name)
             self.user_champ_photo_list.append(PhotoImage(data = champ_img).zoom(1).subsample(3)) # zoom과 subsample로 크기조절
             label_champ = Label(frame_user, image = self.user_champ_photo_list[self.playing_user_cnt-1])
             label_champ.place(x=295, y=8)
+        print(f'소요시간 {time.time()-start_time:.2f}[s]')
 
 
 
