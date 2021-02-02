@@ -362,6 +362,7 @@ class lol_tracer_Tk(Tk):
             m_text += '존재하지 않는 유저입니다.'
             for user in lol_api.non_user_list:
                 m_text += f'\n  {user}'
+            lol_api.non_user_list = []
         elif api_error == 405:
             m_text += 'None'
         elif api_error == 429:
@@ -400,9 +401,12 @@ class lol_tracer_Tk(Tk):
         # 유저 정보 갱신
         self.user_memory = dict()
         self.user_cache = lol_api.async_get_user_cache(self.user_list)
+        del_user_list = []
         for user_name in self.user_list:
             if user_name not in self.user_cache:
-                self.user_list.remove(user_name)
+                del_user_list.append(user_name)
+        for user_name in del_user_list:
+            self.user_list.remove(user_name)
         self.last_user_match_dict = self.user_match_dict
         self.user_match_dict = lol_api.fast_get_match_list(self.user_cache, self.user_list)
         self.search_user(self.user_list)
