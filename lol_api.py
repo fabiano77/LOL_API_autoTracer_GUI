@@ -225,6 +225,8 @@ def get_queue_type(match_data):
         return '일반 게임'
     elif queue_id == 440:
         return '자유 랭크'
+    elif queue_id == 450:
+        return '칼바람 나락'
     elif queue_id == 400:
         return '일반 선택'
     elif queue_id == 900:
@@ -299,6 +301,7 @@ async def __async_get_user_rank(user_name):
 
 async def __async_get_user(user_list):
     global user_cache
+    global api_cnt
     user_cache = dict()
 
     if os.path.isfile(data_path('.\\cache\\user_cache.json')):
@@ -324,7 +327,6 @@ async def __async_get_user(user_list):
                 if  dt > datetime.timedelta(hours = 1):
                     new_rank_user_list.append(user)
             
-    
     new_info_datas = []
     if new_info_user_list:
         new_info_user_list_chunked = list_chunk(new_info_user_list, 19)
@@ -350,8 +352,7 @@ async def __async_get_user(user_list):
                 user_cache[user_name] = {}
             user_cache[user_name]['user_info'] = data
             user_cache[user_name]['user_info']['cacheDate'] = time.time()
-        
-        
+    
     new_rank_datas = []
     if new_rank_user_list:
         new_rank_user_list_chunked = list_chunk(new_rank_user_list, 19)
@@ -376,11 +377,10 @@ async def __async_get_user(user_list):
                 user_cache[user_name]['rank_info']['data'] = data
                 user_cache[user_name]['rank_info']['cacheDate'] = time.time()
     
-
     for user in new_rank_user_list:
         user = user.replace(" ", "").lower()
         if user not in user_cache:
-            return
+            continue
         if 'rank_info' not in user_cache[user]:
             user_cache[user]['rank_info'] = {}
             user_cache[user]['rank_info']['data'] = []
@@ -392,14 +392,18 @@ async def __async_get_user(user_list):
                 user_cache[user]['rank_info']['data'] = []
                 user_cache[user]['rank_info']['cacheDate'] = time.time()
 
-    if new_info_user_list + new_rank_user_list:
+    total_list = new_info_user_list + new_rank_user_list
+    total_list = list(set(total_list)-set(non_user_list))
+    if total_list:
         print('[cache refresh]:', end=' ')
-        for user in new_info_user_list + new_rank_user_list:
+        for user in total_list:
             print(user, end = ' ')
         print()
         with open(data_path('.\\cache\\user_cache.json'), 'w', encoding='utf-8') as f:
                 json.dump(user_cache, f, indent='\t', ensure_ascii=False)
-        time.sleep(1)
+                
+    if api_cnt > 0:
+        time.sleep(1.2)
         
 def async_get_user_cache(user_list):
     global loop
@@ -479,12 +483,12 @@ def list_chunk(lst, n):
     return [lst[i:i+n] for i in range(0, len(lst), n)]
 
 if __name__ == '__main__':
-    user_list = ['hideonbush', '웃대의님아','직장인큐베', 'transname', '26세고졸무직공익', 'alphabetc', '1997누비라'] 
+    user_list = ['타잔'] 
     
-    # begin = time.time()
-    # user_cache = async_get_user_cache(user_list)
-    # print(fast_get_match_list(user_cache, user_list))
-    # end = time.time()
-    # print(f'소요시간 : {end-begin:.3f}[s]')
-    # with open(data_path('.\\test.json'), 'w', encoding='utf-8') as f:
-    #     json.dump(match_data_list_chunked, f, indent='\t', ensure_ascii=False)
+    begin = time.time()
+    user_cache = async_get_user_cache(user_list)
+    data = fast_get_match_list(user_cache, user_list)
+    end = time.time()
+    with open('.\\test.json', 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent='\t', ensure_ascii=False)
+    print(f'소요시간 : {end-begin:.3f}[s]')
