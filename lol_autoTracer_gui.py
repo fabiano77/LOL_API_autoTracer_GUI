@@ -342,6 +342,16 @@ class lol_tracer_Tk(Tk):
             # print('time_refresh: call update')
             self.update()
 
+
+    def check_change_nickname(self, before_name):
+        new_name = lol_api.search_changed_nickname(before_name)
+        if not new_name:
+            return
+        m_text = f'{before_name} 유저는\n{new_name} (으)로 닉네임을 변경하였습니다.'
+        self.after(1, self.warning_message, '유저 닉네임 변경 알림', m_text)
+        
+
+
     def check_api_error(self):
         api_error = lol_api.last_api_error
         if api_error == 0:
@@ -362,12 +372,13 @@ class lol_tracer_Tk(Tk):
             m_text += '존재하지 않는 유저입니다.'
             for user in lol_api.non_user_list:
                 m_text += f'\n  {user}'
+                self.check_change_nickname(user)
             lol_api.non_user_list = []
         elif api_error == 405:
             m_text += 'None'
         elif api_error == 429:
             m_text += '요청 횟수를 초과하였습니다. 1분 후 시도하세요.'
-        self.after(10, self.warning_message, m_title, m_text)
+        self.after(1, self.warning_message, m_title, m_text)
         
     # def auto_update(self):
     #     print(f'call: auto_update, period : {self.time_min}[min]')

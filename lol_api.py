@@ -277,6 +277,7 @@ async def __async_get_user_info(user_name):
         return r.status_code
 
     user_data = json.loads(r.text)
+    print(user_data)
     return user_data
 
 async def __async_get_user_rank(user_name):
@@ -284,7 +285,6 @@ async def __async_get_user_rank(user_name):
     global user_cache
     global api_cnt
     api_cnt += 1
-
     user_name = user_name.replace(" ", "").lower()
     user_data = dict()
     if user_name not in user_cache:
@@ -302,6 +302,7 @@ async def __async_get_user_rank(user_name):
 async def __async_get_user(user_list):
     global user_cache
     global api_cnt
+
     user_cache = dict()
 
     if os.path.isfile(data_path('.\\cache\\user_cache.json')):
@@ -324,9 +325,11 @@ async def __async_get_user(user_list):
                 new_rank_user_list.append(user)
             else:
                 dt = datetime.timedelta(seconds = time.time() - user_cache[user]['rank_info']['cacheDate'])
+                if  dt > datetime.timedelta(days = 1):
+                    new_info_user_list.append(user)
                 if  dt > datetime.timedelta(hours = 1):
                     new_rank_user_list.append(user)
-            
+
     new_info_datas = []
     if new_info_user_list:
         new_info_user_list_chunked = list_chunk(new_info_user_list, 19)
@@ -353,6 +356,10 @@ async def __async_get_user(user_list):
             user_cache[user_name]['user_info'] = data
             user_cache[user_name]['user_info']['cacheDate'] = time.time()
     
+    for name in non_user_list:
+        if name in new_rank_user_list:
+            new_rank_user_list.remove(name)
+
     new_rank_datas = []
     if new_rank_user_list:
         new_rank_user_list_chunked = list_chunk(new_rank_user_list, 19)
@@ -367,6 +374,7 @@ async def __async_get_user(user_list):
                 time.sleep(1.2)
         for lst in new_rank_datas_chunked:
             new_rank_datas += lst
+
         # new_rank_datas = await asyncio.gather(*futures_rank)                # 결과를 한꺼번에 가져옴
         for data in new_rank_datas:
             if type(data) == int:
@@ -482,11 +490,30 @@ def fast_get_match_list(user_cache, user_list):
 def list_chunk(lst, n):
     return [lst[i:i+n] for i in range(0, len(lst), n)]
 
+
+def search_changed_nickname(before_name):
+    global user_cache
+    global last_api_error
+    global api_cnt
+    api_cnt += 1
+    before_name = before_name.replace(" ", "").lower()
+    if before_name not in user_cache:
+        return False
+    puuid = user_cache[before_name]['user_info']['puuid']
+    req_url = 'https://asia.api.riotgames.com/riot/account/v1/accounts/by-puuid/' + puuid + '?api_key=' + API_KEY
+    req = requests.get(req_url)
+    if req.status_code != 200:
+        last_api_error = req.status_code
+        return req.status_code
+    data = req.json()
+    return data['gameName']
+
 if __name__ == '__main__':
-    user_list = ['타잔'] 
+    user_list = ['Alphabet C'] 
     
     begin = time.time()
     user_cache = async_get_user_cache(user_list)
+    print(search_changed_nickname('alphabetc'))
     data = fast_get_match_list(user_cache, user_list)
     end = time.time()
     with open('.\\test.json', 'w', encoding='utf-8') as f:
